@@ -32,6 +32,10 @@ public class ServerPacketProcessor implements PacketProcessor {
 		
 		if (type == 1) { // cas creation de groupe
 			createGroup(p.srcId,buf);
+
+		} else if (type == 2) { // cas ajout d'un utilisateur
+			addMemberToGroup(p.srcId,buf);
+
 		} else {
 			LOG.warning("Server message of type=" + type + " not handled by procesor");
 		}
@@ -44,5 +48,29 @@ public class ServerPacketProcessor implements PacketProcessor {
 			g.addMember(server.getUser(data.getInt()));
 		}
 	}
-
+	public void addMemberToGroup(int requesterId, ByteBuffer data) {
+		int groupId = data.getInt();
+		int newMemberId = data.getInt();
+	
+		GroupMsg group = server.getGroup(groupId);
+		if (group == null) {
+			LOG.warning("Groupe introuvable : " + groupId);
+			return;
+		}
+	
+		if (group.getOwner().getId() != requesterId) {
+			LOG.warning("Seul le propriétaire peut ajouter des membres !");
+			return;
+		}
+	
+		UserMsg newMember = server.getUser(newMemberId);
+		if (newMember == null) {
+			LOG.warning("Utilisateur " + newMemberId + " inconnu");
+			return;
+		}
+	
+		group.addMember(newMember);
+		LOG.info("Utilisateur " + newMemberId + " ajouté au groupe " + groupId);
+	}
+	
 }

@@ -222,17 +222,54 @@ public class ClientMsg {
 		Scanner sc = new Scanner(System.in);
 		String lu = null;
 		while (!"\\quit".equals(lu)) {
-			try {
-				System.out.println("A qui voulez vous écrire ? ");
-				int dest = Integer.parseInt(sc.nextLine());
+			System.out.println("A qui voulez vous écrire ? ");
+			lu = sc.nextLine();
 
+			// Si l'utilisateur tape la commande \add, on traite l'ajout de membre
+			if ("\\add".equals(lu)) {
+				try {
+					// Demande l'ID du groupe cible
+					System.out.print("ID du groupe que vous voulez intégrer : ");
+					int groupId = Integer.parseInt(sc.nextLine());
+					// Demande l'ID du nouvel utilisateur à ajouter au groupe
+					System.out.print("Entrer l'ID du nouvel utilisateur : ");
+					int newUserId = Integer.parseInt(sc.nextLine());
+					// Construction d'un paquet de données à envoyer au serveur
+					ByteArrayOutputStream bos = new ByteArrayOutputStream();
+					DataOutputStream dos = new DataOutputStream(bos);
+					dos.writeByte(2); // type = 2 : commande "ajout membre"
+					dos.writeInt(groupId); // ID du groupe cible
+					dos.writeInt(newUserId); // ID de l'utilisateur à ajouter
+					dos.flush();
+		
+					// Envoi du paquet vers le serveur (destinataire = 0)
+					c.sendPacket(0, bos.toByteArray());
+		
+				} catch (Exception e) {
+					// Gestion d'une erreur de saisie (ex: non entier)
+					System.out.println("Erreur de saisie.");
+				}
+		
+				// Retour au début de la boucle (évite de demander à qui écrire après)
+				continue;
+			}
+		
+			// Si ce n'est pas une commande spéciale, on traite comme un envoi de message normal
+			try {
+				// Demande le destinataire du message (ID utilisateur ou groupe)
+				int dest = Integer.parseInt(lu);
+		
+				// Demande le message à envoyer
 				System.out.println("Votre message ? ");
 				lu = sc.nextLine();
+		
+				// Envoie du message sous forme de bytes
 				c.sendPacket(dest, lu.getBytes());
+		
 			} catch (InputMismatchException | NumberFormatException e) {
+				// Gestion d'une erreur si l'entrée n'est pas un nombre
 				System.out.println("Mauvais format");
 			}
-
 		}
 
 		/*

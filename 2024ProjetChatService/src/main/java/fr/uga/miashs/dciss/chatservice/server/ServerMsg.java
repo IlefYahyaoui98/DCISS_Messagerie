@@ -160,5 +160,8 @@ public class ServerMsg {
 		ServerMsg s = new ServerMsg(1666);
 		s.start();
 	}
-
+	public GroupMsg getGroup(int groupId) {
+		return groups.get(groupId);
+	}
+	
 }

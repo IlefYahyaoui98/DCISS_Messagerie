@@ -34,6 +34,11 @@ public class GroupMsg implements PacketProcessor {
 	public int getId() {
 		return groupId;
 	}
+
+	public UserMsg getOwner() {
+		return owner;
+	}
+	
 	
 	/**
 	 * This method has to be used to add a member to the group.
