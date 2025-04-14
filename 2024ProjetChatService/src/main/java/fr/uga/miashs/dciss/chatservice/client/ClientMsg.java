@@ -222,7 +222,7 @@ public class ClientMsg {
 		Scanner sc = new Scanner(System.in);
 		String lu = null;
 		while (!"\\quit".equals(lu)) {
-			System.out.println("A qui voulez vous écrire ? ");
+			System.out.println("A qui voulez vous écrire ? ou tapez \\add pour intégrer un groupe");
 			lu = sc.nextLine();
 
 			// Si l'utilisateur tape la commande \add, on traite l'ajout de membre
