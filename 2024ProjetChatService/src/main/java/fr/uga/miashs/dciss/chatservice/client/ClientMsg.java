@@ -222,9 +222,36 @@ public class ClientMsg {
 		Scanner sc = new Scanner(System.in);
 		String lu = null;
 		while (!"\\quit".equals(lu)) {
-			System.out.println("A qui voulez vous écrire ? ou tapez \\add pour intégrer un groupe");
+			System.out.println("A qui voulez vous écrire ? ou tapez \\add pour intégrer un groupe, \\remove pour supprimer un membre, \\create pour créer un groupe, \\quit pour quitter");
 			lu = sc.nextLine();
-
+			// Créer un groupe 
+			if ("\\create".equals(lu)) {
+				try {
+					System.out.print("Veuillez entrer le nombre des membres dans le groupe ? ");
+					int nb = Integer.parseInt(sc.nextLine());
+			
+					List<Integer> membres = new ArrayList<>();
+					for (int i = 0; i < nb; i++) {
+						System.out.print("ID du membre " + (i + 1) + " : ");
+						membres.add(Integer.parseInt(sc.nextLine()));
+					}
+			
+					ByteArrayOutputStream bos = new ByteArrayOutputStream();
+					DataOutputStream dos = new DataOutputStream(bos);
+					dos.writeByte(1); // type 1 = création de groupe
+					dos.writeInt(membres.size());
+					for (int id : membres)
+						dos.writeInt(id);
+					dos.flush();
+			
+					c.sendPacket(0, bos.toByteArray());
+			
+				} catch (Exception e) {
+					System.out.println("Erreur dans la saisie");
+				}
+				continue;
+			}
+			
 			// Si l'utilisateur tape la commande \add, on traite l'ajout de membre
 			if ("\\add".equals(lu)) {
 				try {
@@ -253,7 +280,34 @@ public class ClientMsg {
 				// Retour au début de la boucle (évite de demander à qui écrire après)
 				continue;
 			}
+		    if ("\\remove".equals(lu)) {
+				try {
+					// Demande à l'utilisateur l'ID du groupe
+					System.out.print("Veuillez entrer l'ID du groupe :");
+					int groupId = Integer.parseInt(sc.nextLine());
 		
+					// Demande l'ID de l'utilisateur à retirer
+					System.out.print("Veuillez entrer l'ID de l'utilisateur à supprimer du groupe : ");
+					int memberId = Integer.parseInt(sc.nextLine());
+		
+					// Construction du paquet à envoyer au serveur
+					ByteArrayOutputStream bos = new ByteArrayOutputStream();
+					DataOutputStream dos = new DataOutputStream(bos);
+					dos.writeByte(3); // type = 3 => suppression d’un membre
+					dos.writeInt(groupId); // ID du groupe
+					dos.writeInt(memberId); // ID de l'utilisateur à retirer
+					dos.flush();
+		
+					// Envoi du paquet vers le serveur (destinataire = 0)
+					c.sendPacket(0, bos.toByteArray());
+				} catch (Exception e) {
+					System.out.println("Erreur de saisie.");
+				}
+		
+				// On revient au début de la boucle
+				continue;
+			}
+
 			// Si ce n'est pas une commande spéciale, on traite comme un envoi de message normal
 			try {
 				// Demande le destinataire du message (ID utilisateur ou groupe)
@@ -270,6 +324,7 @@ public class ClientMsg {
 				// Gestion d'une erreur si l'entrée n'est pas un nombre
 				System.out.println("Mauvais format");
 			}
+			
 		}
 
 		/*
