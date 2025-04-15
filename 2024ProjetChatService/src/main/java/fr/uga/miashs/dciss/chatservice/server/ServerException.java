@@ -14,8 +14,7 @@ package fr.uga.miashs.dciss.chatservice.server;
 public class ServerException extends RuntimeException {
 
 	public ServerException() {
-		super();
-		// TODO Auto-generated constructor stub
+		super("une erreur du serveur est survenue");
 	}
 
 	public ServerException(String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
