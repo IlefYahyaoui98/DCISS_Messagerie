@@ -82,12 +82,14 @@ public class ClientMsg {
 		if (l != null)
 			mListeners.add(l);
 	}
+
 	protected void notifyMessageListeners(Packet p) {
 		mListeners.forEach(x -> x.messageReceived(p));
 	}
-	
+
 	/**
-	 * Register a ConnectionListener to the client. It will be notified if the connection  start or ends.
+	 * Register a ConnectionListener to the client. It will be notified if the
+	 * connection start or ends.
 	 * 
 	 * @param l
 	 */
@@ -95,10 +97,10 @@ public class ClientMsg {
 		if (l != null)
 			cListeners.add(l);
 	}
+
 	protected void notifyConnectionListeners(boolean active) {
 		cListeners.forEach(x -> x.connectionEvent(active));
 	}
-
 
 	public int getIdentifier() {
 		return identifier;
@@ -150,7 +152,42 @@ public class ClientMsg {
 			// error, connection closed
 			closeSession();
 		}
-		
+
+	}
+
+	/**
+	 * Envoie un fichier à un destinataire spécifique
+	 * 
+	 * @param destId ID du destinataire (utilisateur ou groupe)
+	 * @param file   Fichier à envoyer
+	 * @throws IOException Si une erreur survient pendant la lecture ou l'envoi du
+	 *                     fichier
+	 */
+	public void sendFile(int destId, File file) throws IOException {
+		if (!file.exists() || !file.isFile()) {
+			throw new FileNotFoundException("Le fichier n'existe pas ou n'est pas accessible");
+		}
+
+		ByteArrayOutputStream bos = new ByteArrayOutputStream();
+		DataOutputStream dos = new DataOutputStream(bos);
+
+		// Structure du message:
+		// [TYPE=5][NOM_FICHIER][TAILLE_FICHIER][CONTENU_FICHIER]
+		dos.writeByte(5); // Type 5 pour transfert de fichier
+		dos.writeUTF(file.getName()); // Nom du fichier
+
+		// Lecture et envoi du contenu du fichier
+		byte[] fileContent = new byte[(int) file.length()];
+		try (FileInputStream fis = new FileInputStream(file)) {
+			fis.read(fileContent);
+		}
+
+		dos.writeLong(fileContent.length); // Taille du fichier
+		dos.write(fileContent); // Contenu du fichier
+		dos.flush();
+
+		// Envoi du paquet
+		sendPacket(destId, bos.toByteArray());
 	}
 
 	/**
@@ -190,8 +227,14 @@ public class ClientMsg {
 		// add a dummy listener that print the content of message as a string
 		c.addMessageListener(p -> System.out.println(p.srcId + " says to " + p.destId + ": " + new String(p.data)));
 		
+		// ajout d'un écouteur de fichier qui enregistre les fichiers reçus dans le
+		c.addMessageListener(new FileMessageListener("downloads"));
+		
 		// add a connection listener that exit application when connection closed
-		c.addConnectionListener(active ->  {if (!active) System.exit(0);});
+		c.addConnectionListener(active -> {
+			if (!active)
+				System.exit(0);
+		});
 
 		c.startSession();
 		System.out.println("Vous êtes : " + c.getIdentifier());
@@ -216,26 +259,25 @@ public class ClientMsg {
 			c.sendPacket(0, bos.toByteArray());
 
 		}
-		
-		
 
 		Scanner sc = new Scanner(System.in);
 		String lu = null;
 		while (!"\\quit".equals(lu)) {
-			System.out.println("A qui voulez vous écrire ? ou tapez \\add pour intégrer un groupe, \\remove pour supprimer un membre, \\create pour créer un groupe, \\quit pour quitter");
+			System.out.println(
+					"A qui voulez vous écrire ? ou tapez \\add pour intégrer un groupe, \\remove pour supprimer un membre, \\create pour créer un groupe, \\quit pour quitter");
 			lu = sc.nextLine();
-			// Créer un groupe 
+			// Créer un groupe
 			if ("\\create".equals(lu)) {
 				try {
 					System.out.print("Veuillez entrer le nombre des membres dans le groupe ? ");
 					int nb = Integer.parseInt(sc.nextLine());
-			
+
 					List<Integer> membres = new ArrayList<>();
 					for (int i = 0; i < nb; i++) {
 						System.out.print("ID du membre " + (i + 1) + " : ");
 						membres.add(Integer.parseInt(sc.nextLine()));
 					}
-			
+
 					ByteArrayOutputStream bos = new ByteArrayOutputStream();
 					DataOutputStream dos = new DataOutputStream(bos);
 					dos.writeByte(1); // type 1 = création de groupe
@@ -243,15 +285,15 @@ public class ClientMsg {
 					for (int id : membres)
 						dos.writeInt(id);
 					dos.flush();
-			
+
 					c.sendPacket(0, bos.toByteArray());
-			
+
 				} catch (Exception e) {
 					System.out.println("Erreur dans la saisie");
 				}
 				continue;
 			}
-			
+
 			// Si l'utilisateur tape la commande \add, on traite l'ajout de membre
 			if ("\\add".equals(lu)) {
 				try {
@@ -268,28 +310,28 @@ public class ClientMsg {
 					dos.writeInt(groupId); // ID du groupe cible
 					dos.writeInt(newUserId); // ID de l'utilisateur à ajouter
 					dos.flush();
-		
+
 					// Envoi du paquet vers le serveur (destinataire = 0)
 					c.sendPacket(0, bos.toByteArray());
-		
+
 				} catch (Exception e) {
 					// Gestion d'une erreur de saisie (ex: non entier)
 					System.out.println("Erreur de saisie.");
 				}
-		
+
 				// Retour au début de la boucle (évite de demander à qui écrire après)
 				continue;
 			}
-		    if ("\\remove".equals(lu)) {
+			if ("\\remove".equals(lu)) {
 				try {
 					// Demande à l'utilisateur l'ID du groupe
 					System.out.print("Veuillez entrer l'ID du groupe :");
 					int groupId = Integer.parseInt(sc.nextLine());
-		
+
 					// Demande l'ID de l'utilisateur à retirer
 					System.out.print("Veuillez entrer l'ID de l'utilisateur à supprimer du groupe : ");
 					int memberId = Integer.parseInt(sc.nextLine());
-		
+
 					// Construction du paquet à envoyer au serveur
 					ByteArrayOutputStream bos = new ByteArrayOutputStream();
 					DataOutputStream dos = new DataOutputStream(bos);
@@ -297,34 +339,56 @@ public class ClientMsg {
 					dos.writeInt(groupId); // ID du groupe
 					dos.writeInt(memberId); // ID de l'utilisateur à retirer
 					dos.flush();
-		
+
 					// Envoi du paquet vers le serveur (destinataire = 0)
 					c.sendPacket(0, bos.toByteArray());
 				} catch (Exception e) {
 					System.out.println("Erreur de saisie.");
 				}
-		
+
 				// On revient au début de la boucle
 				continue;
 			}
 
-			// Si ce n'est pas une commande spéciale, on traite comme un envoi de message normal
+			// Si ce n'est pas une commande spéciale, on traite comme un envoi de message
+			// normal
 			try {
 				// Demande le destinataire du message (ID utilisateur ou groupe)
 				int dest = Integer.parseInt(lu);
-		
+
 				// Demande le message à envoyer
 				System.out.println("Votre message ? ");
 				lu = sc.nextLine();
-		
+
 				// Envoie du message sous forme de bytes
 				c.sendPacket(dest, lu.getBytes());
-		
+
 			} catch (InputMismatchException | NumberFormatException e) {
 				// Gestion d'une erreur si l'entrée n'est pas un nombre
 				System.out.println("Mauvais format");
 			}
-			
+			// Si l'utilisateur tape la commande \file, on traite l'envoi de fichier
+			if ("\\file".equals(lu)) {
+				try {
+					System.out.print("ID du destinataire: ");
+					int dest = Integer.parseInt(sc.nextLine());
+
+					System.out.print("Chemin du fichier à envoyer: ");
+					String path = sc.nextLine();
+					File file = new File(path);
+
+					if (file.exists() && file.isFile()) {
+						c.sendFile(dest, file);
+						System.out.println("Fichier envoyé!");
+					} else {
+						System.out.println("Fichier introuvable");
+					}
+				} catch (Exception e) {
+					System.out.println("Erreur lors de l'envoi: " + e.getMessage());
+				}
+				continue;
+			}
+
 		}
 
 		/*
