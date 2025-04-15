@@ -180,7 +180,7 @@ public class ClientMsg {
 	 */
 	public void sendFile(int destId, File file) throws IOException {
 		if (!file.exists() || !file.isFile()) {
-			throw new FileNotFoundException("Le fichier n'existe pas ou n'est pas accessible");
+			throw new FileNotFoundException("Le fichier n'existe pas ou n'est pas accessible" + file.getAbsolutePath());
 		}
 
 		ByteArrayOutputStream bos = new ByteArrayOutputStream();
