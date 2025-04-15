@@ -33,6 +33,7 @@ local.properties
 
 # sbteclipse plugin
 .target
+*.lst
 
 # Tern plugin
 .tern-project
@@ -161,4 +162,4 @@ fabric.properties
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 replay_pid*
-
+ 

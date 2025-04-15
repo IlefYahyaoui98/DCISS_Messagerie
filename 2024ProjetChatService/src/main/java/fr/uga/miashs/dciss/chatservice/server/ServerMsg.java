@@ -51,10 +51,33 @@ public class ServerMsg {
 		sp = new ServerPacketProcessor(this);
 		executor = Executors.newWorkStealingPool();
 	}
+
+	  // Constantes pour les types de messages
+	  public static final byte CREATE_GROUP = 1;
+	  public static final byte ADD_MEMBER = 2;
+	  public static final byte REMOVE_MEMBER = 3;
+	  public static final byte DELETE_GROUP = 4;
+  
+	  // Générateur d'ID
+	  private static final AtomicInteger groupIdCounter = new AtomicInteger(-1);
+  
+	  // Méthodes utilitaires
+	  public static int generateGroupId() {
+		  return groupIdCounter.decrementAndGet();
+	  }
+  
+	  public static boolean isGroupId(int id) {
+		  return id < 0;
+	  }
+  
+	  public static boolean isUserId(int id) {
+		  return id > 0;
+	  }
 	
 	public GroupMsg createGroup(int ownerId) {
 		UserMsg owner = users.get(ownerId);
-		if (owner==null) throw new ServerException("User with id="+ownerId+" unknown. Group creation failed.");
+		if (owner==null) 
+			throw new ServerException("User with id="+ownerId+" unknown. Group creation failed.");
 		int id = nextGroupId.getAndDecrement();
 		GroupMsg res = new GroupMsg(id,owner);
 		groups.put(id, res);
@@ -63,10 +86,12 @@ public class ServerMsg {
 	}
 	
 	public boolean removeGroup(int groupId) {
-		GroupMsg g =groups.remove(groupId);
-		if (g==null) return false;
-		g.beforeDelete();
-		return true;
+		GroupMsg g = groups.remove(groupId);
+		if (g != null) {
+			g.beforeDelete();
+			return true;
+		}
+		return false;
 	}
 	
 	public boolean removeUser(int userId) {
@@ -164,4 +189,10 @@ public class ServerMsg {
 		return groups.get(groupId);
 	}
 	
+	// pour les tests unitaires
+	public void addUser(UserMsg user) {
+		if (user != null) {
+			users.put(user.getId(), user);
+		}
+	}
 }
