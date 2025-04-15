@@ -17,6 +17,7 @@ import java.net.UnknownHostException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import fr.uga.miashs.dciss.chatservice.common.ImageTransfer;
 import fr.uga.miashs.dciss.chatservice.common.Packet;
 
 /**
@@ -204,6 +205,26 @@ public class ClientMsg {
 		sendPacket(destId, bos.toByteArray());
 	}
 
+	// transfer de l'image
+	public void sendImage(int destId, File imageFile) throws IOException {
+		if (!imageFile.exists() || !imageFile.isFile()) {
+			throw new FileNotFoundException("L'image n'existe pas ou n'est pas accessible");
+		}
+
+		// Vérifier que c'est bien une image
+		String name = imageFile.getName().toLowerCase();
+		if (!name.endsWith(".png") && !name.endsWith(".jpg") && !name.endsWith(".jpeg")) {
+			throw new IllegalArgumentException("Format d'image non supporté");
+		}
+
+		// Convertir l'image en ImageTransfer
+		ImageTransfer imageTransfer = ImageTransfer.fromImage(imageFile);
+
+		// Sérialiser et envoyer
+		byte[] data = ImageTransfer.toBytes(imageTransfer);
+		sendPacket(destId, data);
+	}
+
 	/**
 	 * Start the receive loop. Has to be called only once.
 	 */
@@ -240,10 +261,13 @@ public class ClientMsg {
 
 		// add a dummy listener that print the content of message as a string
 		c.addMessageListener(p -> System.out.println(p.srcId + " says to " + p.destId + ": " + new String(p.data)));
-		
+
 		// ajout d'un écouteur de fichier qui enregistre les fichiers reçus dans le
 		c.addMessageListener(new FileMessageListener("downloads"));
-		
+
+		 // Ajouter l'écouteur d'images
+		 c.addMessageListener(new ImageMessageListener("images"));
+
 		// add a connection listener that exit application when connection closed
 		c.addConnectionListener(active -> {
 			if (!active)
@@ -407,6 +431,24 @@ public class ClientMsg {
 				continue;
 			}
 
+			 // Ajouter le traitement de la commande \photo
+			 if ("\\photo".equals(lu)) {
+				try {
+					System.out.print("ID du destinataire: ");
+					int dest = Integer.parseInt(sc.nextLine());
+					
+					System.out.print("Chemin de l'image à envoyer: ");
+					String path = sc.nextLine();
+					File imageFile = new File(path);
+					
+					c.sendImage(dest, imageFile);
+					System.out.println("Image envoyée!");
+				} catch (Exception e) {
+					System.out.println("Erreur lors de l'envoi: " + e.getMessage());
+				}
+				continue;
+			}
+					
 		}
 
 		/*
