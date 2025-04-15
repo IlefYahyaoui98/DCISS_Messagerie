@@ -45,12 +45,9 @@ public class ServerPacketProcessor implements PacketProcessor {
 		} else if (type == 5) {
 			handleFileTransfer(p); // Traite le transfert de fichier
 		} else if (type == 6) {
-<<<<<<< HEAD
-			setNickname(p.srcId, buf);
-
-=======
 			handleImageTransfer(p); // Traite le transfert d'image
->>>>>>> 244b273431e06d99a18f3c12621c9f349f287a3b
+		} else if (type == 7) {
+			setNickname(p.srcId, buf); // Traite le changement de pseudo
 		} else {
 			LOG.warning("Server message of type=" + type + " not handled by procesor");
 		}

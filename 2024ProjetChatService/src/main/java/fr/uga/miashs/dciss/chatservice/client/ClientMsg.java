@@ -131,7 +131,7 @@ public class ClientMsg {
 					// Envoyer le pseudo au serveur (type 6)
 					ByteArrayOutputStream bos = new ByteArrayOutputStream();
 					DataOutputStream dos2 = new DataOutputStream(bos);
-					dos2.writeByte(6); // type 6 : définir le pseudo
+					dos2.writeByte(7); // type 7 : définir le pseudo
 					dos2.writeUTF(nickname);
 					dos2.flush();
 				
