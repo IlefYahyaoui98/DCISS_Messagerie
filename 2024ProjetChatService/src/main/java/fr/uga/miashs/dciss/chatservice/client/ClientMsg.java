@@ -123,6 +123,20 @@ public class ClientMsg {
 				dos.flush();
 				if (identifier == 0) {
 					identifier = dis.readInt();
+					// Demander un pseudo à l'utilisateur
+					System.out.print("Choisissez votre pseudo : ");
+					Scanner sc = new Scanner(System.in);
+					String nickname = sc.nextLine();
+				
+					// Envoyer le pseudo au serveur (type 6)
+					ByteArrayOutputStream bos = new ByteArrayOutputStream();
+					DataOutputStream dos2 = new DataOutputStream(bos);
+					dos2.writeByte(7); // type 7 : définir le pseudo
+					dos2.writeUTF(nickname);
+					dos2.flush();
+				
+					// envoyer au serveur
+					sendPacket(0, bos.toByteArray());
 				}
 				// start the receive loop
 				new Thread(() -> receiveLoop()).start();
@@ -261,10 +275,14 @@ public class ClientMsg {
 		});
 
 		c.startSession();
-		System.out.println("Vous êtes : " + c.getIdentifier());
+		//System.out.println("Vous êtes : " + c.getIdentifier());
 
 		// Thread.sleep(5000);
-
+		try {
+			Thread.sleep(150); // attendre un petit moment pour laisser passer le message de bienvenue
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+		}
 		// l'utilisateur avec id 4 crée un grp avec 1 et 3 dedans (et lui meme)
 		if (c.getIdentifier() == 4) {
 			ByteArrayOutputStream bos = new ByteArrayOutputStream();
@@ -288,7 +306,7 @@ public class ClientMsg {
 		String lu = null;
 		while (!"\\quit".equals(lu)) {
 			System.out.println(
-					"A qui voulez vous écrire ? ou tapez \\add pour intégrer un groupe, \\remove pour supprimer un membre, \\create pour créer un groupe, \\quit pour quitter");
+					"A qui voulez vous écrire ? ou tapez \\add pour intégrer un groupe, \\remove pour supprimer un membre, \\create pour créer un groupe");
 			lu = sc.nextLine();
 			// Si l'utilisateur tape la commande \file, on traite l'envoi de fichier
 			if ("\\file".equals(lu)) {

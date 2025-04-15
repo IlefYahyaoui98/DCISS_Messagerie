@@ -46,6 +46,8 @@ public class ServerPacketProcessor implements PacketProcessor {
 			handleFileTransfer(p); // Traite le transfert de fichier
 		} else if (type == 6) {
 			handleImageTransfer(p); // Traite le transfert d'image
+		} else if (type == 7) {
+			setNickname(p.srcId, buf); // Traite le changement de pseudo
 		} else {
 			LOG.warning("Server message of type=" + type + " not handled by procesor");
 		}
@@ -60,14 +62,14 @@ public class ServerPacketProcessor implements PacketProcessor {
 			UserMsg member = server.getUser(memberId);
 			g.addMember(member);
 
-			// ✅ Envoi d'un message de notification au membre
+			// Envoi d'un message de notification au membre
 			if (member != null) {
 				String notif = "Vous avez été ajouté au groupe " + g.getId();
 				member.process(new Packet(0, memberId, notif.getBytes()));
 			}
 		}
 
-		// ✅ Envoi d'une confirmation au créateur du groupe
+		// Envoi d'une confirmation au créateur du groupe
 		UserMsg owner = server.getUser(ownerId);
 		if (owner != null) {
 			String confirm = "Vous avez créé le groupe " + g.getId();
@@ -100,11 +102,11 @@ public class ServerPacketProcessor implements PacketProcessor {
 		group.addMember(newMember);
 		LOG.info("Utilisateur " + newMemberId + " ajouté au groupe " + groupId);
 
-		// ✅ Envoi d'un message de confirmation au membre ajouté
+		// Envoi d'un message de confirmation au membre ajouté
 		String messageToMember = "Vous avez été ajouté au groupe " + groupId;
 		newMember.process(new Packet(0, newMemberId, messageToMember.getBytes()));
 
-		// ✅ Envoi d'un message de confirmation au propriétaire
+		// Envoi d'un message de confirmation au propriétaire
 		UserMsg owner = server.getUser(requesterId);
 		if (owner != null) {
 			String messageToOwner = "L'utilisateur " + newMemberId + " a été ajouté au groupe " + groupId;
@@ -127,11 +129,11 @@ public class ServerPacketProcessor implements PacketProcessor {
 			return;
 
 		if (group.removeMember(member)) {
-			// 🔔 Notifie l'utilisateur retiré
+			// Notifie l'utilisateur retiré
 			String msg = "Vous avez été retiré du groupe " + groupId;
 			member.process(new Packet(0, memberId, msg.getBytes()));
 
-			// 🔔 Confirme au propriétaire
+			// Confirme au propriétaire
 			String confirm = "L'utilisateur " + memberId + " a été retiré du groupe " + groupId;
 			server.getUser(requesterId).process(new Packet(0, requesterId, confirm.getBytes()));
 		}
@@ -164,6 +166,23 @@ public class ServerPacketProcessor implements PacketProcessor {
 		}
 	}
 
+	public void setNickname(int userId, ByteBuffer data) {
+		try {
+			// Lire le pseudo depuis le buffer
+			byte[] strBytes = new byte[data.remaining()];
+			data.get(strBytes);
+			String nickname = new String(strBytes);
+
+			UserMsg user = server.getUser(userId);
+			if (user != null) {
+				user.setNickname(nickname);
+				String msg = "Bienvenue " + nickname + " ! Votre pseudo a été enregistré avec succès.";
+				user.process(new Packet(0, userId, msg.getBytes()));
+			}
+		} catch (Exception e) {
+			LOG.warning("Erreur lors de la réception du pseudo");
+		}
+	}
 	// Traite un transfert d'image
 private void handleImageTransfer(Packet p) {
     try {
