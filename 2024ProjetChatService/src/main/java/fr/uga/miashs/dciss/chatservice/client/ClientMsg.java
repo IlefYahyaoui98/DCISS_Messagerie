@@ -290,6 +290,46 @@ public class ClientMsg {
 			System.out.println(
 					"A qui voulez vous écrire ? ou tapez \\add pour intégrer un groupe, \\remove pour supprimer un membre, \\create pour créer un groupe, \\quit pour quitter");
 			lu = sc.nextLine();
+			// Si l'utilisateur tape la commande \file, on traite l'envoi de fichier
+			if ("\\file".equals(lu)) {
+				try {
+					System.out.print("ID du destinataire: ");
+					int dest = Integer.parseInt(sc.nextLine());
+
+					System.out.print("Chemin du fichier à envoyer: ");
+					String path = sc.nextLine();
+					File file = new File(path);
+
+					if (file.exists() && file.isFile()) {
+						c.sendFile(dest, file);
+						System.out.println("Fichier envoyé!");
+					} else {
+						System.out.println("Fichier introuvable");
+					}
+				} catch (Exception e) {
+					System.out.println("Erreur lors de l'envoi: " + e.getMessage());
+				}
+				continue;
+			}
+
+			 // Ajouter le traitement de la commande \photo
+			 if ("\\photo".equals(lu)) {
+				try {
+					System.out.print("ID du destinataire: ");
+					int dest = Integer.parseInt(sc.nextLine());
+					
+					System.out.print("Chemin de l'image à envoyer: ");
+					String path = sc.nextLine();
+					File imageFile = new File(path);
+					
+					c.sendImage(dest, imageFile);
+					System.out.println("Image envoyée!");
+				} catch (Exception e) {
+					System.out.println("Erreur lors de l'envoi: " + e.getMessage());
+				}
+				continue;
+			}
+					
 			// Créer un groupe
 			if ("\\create".equals(lu)) {
 				try {
@@ -391,46 +431,7 @@ public class ClientMsg {
 				// Gestion d'une erreur si l'entrée n'est pas un nombre
 				System.out.println("Mauvais format");
 			}
-			// Si l'utilisateur tape la commande \file, on traite l'envoi de fichier
-			if ("\\file".equals(lu)) {
-				try {
-					System.out.print("ID du destinataire: ");
-					int dest = Integer.parseInt(sc.nextLine());
-
-					System.out.print("Chemin du fichier à envoyer: ");
-					String path = sc.nextLine();
-					File file = new File(path);
-
-					if (file.exists() && file.isFile()) {
-						c.sendFile(dest, file);
-						System.out.println("Fichier envoyé!");
-					} else {
-						System.out.println("Fichier introuvable");
-					}
-				} catch (Exception e) {
-					System.out.println("Erreur lors de l'envoi: " + e.getMessage());
-				}
-				continue;
-			}
-
-			 // Ajouter le traitement de la commande \photo
-			 if ("\\photo".equals(lu)) {
-				try {
-					System.out.print("ID du destinataire: ");
-					int dest = Integer.parseInt(sc.nextLine());
-					
-					System.out.print("Chemin de l'image à envoyer: ");
-					String path = sc.nextLine();
-					File imageFile = new File(path);
-					
-					c.sendImage(dest, imageFile);
-					System.out.println("Image envoyée!");
-				} catch (Exception e) {
-					System.out.println("Erreur lors de l'envoi: " + e.getMessage());
-				}
-				continue;
-			}
-					
+			
 		}
 
 		/*
