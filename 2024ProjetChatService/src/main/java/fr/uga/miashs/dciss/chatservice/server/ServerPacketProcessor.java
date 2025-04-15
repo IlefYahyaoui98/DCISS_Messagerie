@@ -16,6 +16,7 @@ import java.nio.ByteBuffer;
 import java.util.logging.Logger;
 
 import fr.uga.miashs.dciss.chatservice.common.FileTransfer;
+import fr.uga.miashs.dciss.chatservice.common.ImageTransfer;
 import fr.uga.miashs.dciss.chatservice.common.Packet;
 
 public class ServerPacketProcessor implements PacketProcessor {
@@ -43,6 +44,8 @@ public class ServerPacketProcessor implements PacketProcessor {
 			removeMemberFromGroup(p.srcId, buf);
 		} else if (type == 5) {
 			handleFileTransfer(p); // Traite le transfert de fichier
+		} else if (type == 6) {
+			handleImageTransfer(p); // Traite le transfert d'image
 		} else {
 			LOG.warning("Server message of type=" + type + " not handled by procesor");
 		}
@@ -160,5 +163,39 @@ public class ServerPacketProcessor implements PacketProcessor {
 			LOG.warning("Error processing file transfer: " + e.getMessage());
 		}
 	}
+
+	// Traite un transfert d'image
+private void handleImageTransfer(Packet p) {
+    try {
+        // Reconstruction de l'ImageTransfer
+        ImageTransfer transfer = ImageTransfer.fromBytes(p.data);
+
+        // Log du transfert
+        LOG.info("Image transfer from " + p.srcId + " to " + p.destId +
+                ": " + transfer.getImageName() + " (" + transfer.getImageFormat() + ")");
+
+        // Transmission au destinataire
+        if (p.destId < 0) { // Groupe
+            GroupMsg group = server.getGroup(p.destId);
+            if (group != null) {
+                group.process(p);
+            } else {
+                LOG.warning("Group " + p.destId + " not found for image transfer");
+            }
+        } else { // Utilisateur direct
+            UserMsg dest = server.getUser(p.destId);
+            if (dest != null) {
+                dest.process(p);
+            } else {
+                LOG.warning("User " + p.destId + " not found for image transfer");
+            }
+        }
+
+
+    } catch (IOException e) {
+        LOG.warning("Error processing image transfer: " + e.getMessage());
+       
+    }
+}
 
 }

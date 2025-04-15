@@ -58,6 +58,7 @@ public class ServerMsg {
 	  public static final byte REMOVE_MEMBER = 3;
 	  public static final byte DELETE_GROUP = 4;
 	  public static final byte FILE_TRANSFER = 5; 
+	  public static final byte IMAGE_MESSAGE = 6;
 	  
 	  // Générateur d'ID
 	  private static final AtomicInteger groupIdCounter = new AtomicInteger(-1);
