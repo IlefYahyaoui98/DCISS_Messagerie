@@ -127,14 +127,16 @@ public class ClientMsg {
 					System.out.print("Choisissez votre pseudo : ");
 					Scanner sc = new Scanner(System.in);
 					String nickname = sc.nextLine();
-				
+
 					// Envoyer le pseudo au serveur (type 6)
 					ByteArrayOutputStream bos = new ByteArrayOutputStream();
 					DataOutputStream dos2 = new DataOutputStream(bos);
-					dos2.writeByte(7); // type 7 : définir le pseudo
-					dos2.writeUTF(nickname);
+					byte[] nicknameBytes = nickname.getBytes();
+					dos2.writeByte(7); // type 7
+					dos2.write(nicknameBytes); // juste écrire les bytes du pseudo
+
 					dos2.flush();
-				
+
 					// envoyer au serveur
 					sendPacket(0, bos.toByteArray());
 				}
@@ -258,15 +260,49 @@ public class ClientMsg {
 
 	public static void main(String[] args) throws UnknownHostException, IOException, InterruptedException {
 		ClientMsg c = new ClientMsg("localhost", 1666);
+		Map<String, Integer> pseudoToId = new HashMap<>();
+		Map<Integer, String> idToPseudo = new HashMap<>();
 
 		// add a dummy listener that print the content of message as a string
-		c.addMessageListener(p -> System.out.println(p.srcId + " says to " + p.destId + ": " + new String(p.data)));
+		c.addMessageListener(p -> {
+			String msg = new String(p.data).trim();
+
+			// 1. Si c’est une annonce de pseudo, on enregistre
+			if (msg.startsWith("NOUVEAU_PSEUDO:")) {
+				String[] parts = msg.split(":", 3);
+				if (parts.length == 3) {
+					int userId = Integer.parseInt(parts[1]);
+					String pseudo = parts[2];
+					pseudoToId.put(pseudo.toLowerCase(), userId);
+					idToPseudo.put(userId, pseudo);
+					if (userId != c.getIdentifier()) {
+						System.out.println("[INFO] " + pseudo + " vient de se connecter (id = " + userId + ")");
+					}
+				}
+				return;
+			}
+			if (msg.toLowerCase().startsWith("bienvenue ")) {
+				String pseudo = msg.substring(10).split(" ")[0];
+				pseudoToId.put(pseudo.toLowerCase(), p.destId);
+				idToPseudo.put(p.destId, pseudo);
+			}
+			// 2. Si c’est un message du serveur (srcId == 0), afficher directement
+			if (p.srcId == 0) {
+				System.out.println(msg);
+				return;
+			}
+
+			// 3. Associer les ID aux pseudos
+			String from = idToPseudo.containsKey(p.srcId) ? idToPseudo.get(p.srcId) : ("Utilisateur #" + p.srcId);
+			String to = idToPseudo.containsKey(p.destId) ? idToPseudo.get(p.destId) : ("Utilisateur #" + p.destId);
+			System.out.println(from + " says to " + to + " : " + msg);
+		});
 
 		// ajout d'un écouteur de fichier qui enregistre les fichiers reçus dans le
 		c.addMessageListener(new FileMessageListener("downloads"));
 
-		 // Ajouter l'écouteur d'images
-		 c.addMessageListener(new ImageMessageListener("images"));
+		// Ajouter l'écouteur d'images
+		c.addMessageListener(new ImageMessageListener("images"));
 
 		// add a connection listener that exit application when connection closed
 		c.addConnectionListener(active -> {
@@ -275,9 +311,10 @@ public class ClientMsg {
 		});
 
 		c.startSession();
-		//System.out.println("Vous êtes : " + c.getIdentifier());
+		// System.out.println("Vous êtes : " + c.getIdentifier());
 
-		// Thread.sleep(5000);
+		Thread.sleep(500);
+
 		try {
 			Thread.sleep(150); // attendre un petit moment pour laisser passer le message de bienvenue
 		} catch (InterruptedException e) {
@@ -316,8 +353,15 @@ public class ClientMsg {
 
 					List<Integer> membres = new ArrayList<>();
 					for (int i = 0; i < nb; i++) {
-						System.out.print("ID du membre " + (i + 1) + " : ");
-						membres.add(Integer.parseInt(sc.nextLine()));
+						System.out.print("Pseudo du membre " + (i + 1) + " : ");
+						String nick = sc.nextLine();
+						Integer memberId = pseudoToId.get(nick.toLowerCase());
+						if (memberId == null) {
+							System.out.println("Pseudo inconnu !");
+							i--; // redemande ce membre
+							continue;
+						}
+						membres.add(memberId);
 					}
 
 					ByteArrayOutputStream bos = new ByteArrayOutputStream();
@@ -343,8 +387,14 @@ public class ClientMsg {
 					System.out.print("ID du groupe que vous voulez intégrer : ");
 					int groupId = Integer.parseInt(sc.nextLine());
 					// Demande l'ID du nouvel utilisateur à ajouter au groupe
-					System.out.print("Entrer l'ID du nouvel utilisateur : ");
-					int newUserId = Integer.parseInt(sc.nextLine());
+					System.out.print("Entrer le pseudo du nouvel utilisateur : ");
+					String nick = sc.nextLine();
+					Integer newUserId = pseudoToId.get(nick.toLowerCase());
+					if (newUserId == null) {
+						System.out.println("Pseudo inconnu !");
+						continue;
+					}
+
 					// Construction d'un paquet de données à envoyer au serveur
 					ByteArrayOutputStream bos = new ByteArrayOutputStream();
 					DataOutputStream dos = new DataOutputStream(bos);
@@ -372,14 +422,20 @@ public class ClientMsg {
 
 					// Demande l'ID de l'utilisateur à retirer
 					System.out.print("Veuillez entrer l'ID de l'utilisateur à supprimer du groupe : ");
-					int memberId = Integer.parseInt(sc.nextLine());
+					System.out.print("Entrer le pseudo du nouvel utilisateur : ");
+					String nick = sc.nextLine();
+					Integer newUserId = pseudoToId.get(nick.toLowerCase());
+					if (newUserId == null) {
+						System.out.println("Pseudo inconnu !");
+						continue;
+					}
 
 					// Construction du paquet à envoyer au serveur
 					ByteArrayOutputStream bos = new ByteArrayOutputStream();
 					DataOutputStream dos = new DataOutputStream(bos);
 					dos.writeByte(3); // type = 3 => suppression d’un membre
 					dos.writeInt(groupId); // ID du groupe
-					dos.writeInt(memberId); // ID de l'utilisateur à retirer
+					dos.writeInt(newUserId); // ID de l'utilisateur à retirer
 					dos.flush();
 
 					// Envoi du paquet vers le serveur (destinataire = 0)
@@ -396,7 +452,11 @@ public class ClientMsg {
 			// normal
 			try {
 				// Demande le destinataire du message (ID utilisateur ou groupe)
-				int dest = Integer.parseInt(lu);
+				Integer dest = pseudoToId.get(lu.toLowerCase());
+				if (dest == null) {
+					System.out.println("Pseudo inconnu !");
+					continue;
+				}
 
 				// Demande le message à envoyer
 				System.out.println("Votre message ? ");
@@ -413,7 +473,11 @@ public class ClientMsg {
 			if ("\\file".equals(lu)) {
 				try {
 					System.out.print("ID du destinataire: ");
-					int dest = Integer.parseInt(sc.nextLine());
+					Integer dest = pseudoToId.get(lu.toLowerCase());
+					if (dest == null) {
+						System.out.println("Pseudo inconnu !");
+						continue;
+					}
 
 					System.out.print("Chemin du fichier à envoyer: ");
 					String path = sc.nextLine();
@@ -431,16 +495,20 @@ public class ClientMsg {
 				continue;
 			}
 
-			 // Ajouter le traitement de la commande \photo
-			 if ("\\photo".equals(lu)) {
+			// Ajouter le traitement de la commande \photo
+			if ("\\photo".equals(lu)) {
 				try {
 					System.out.print("ID du destinataire: ");
-					int dest = Integer.parseInt(sc.nextLine());
-					
+					Integer dest = pseudoToId.get(lu.toLowerCase());
+					if (dest == null) {
+						System.out.println("Pseudo inconnu !");
+						continue;
+					}
+
 					System.out.print("Chemin de l'image à envoyer: ");
 					String path = sc.nextLine();
 					File imageFile = new File(path);
-					
+
 					c.sendImage(dest, imageFile);
 					System.out.println("Image envoyée!");
 				} catch (Exception e) {
@@ -448,7 +516,7 @@ public class ClientMsg {
 				}
 				continue;
 			}
-					
+
 		}
 
 		/*

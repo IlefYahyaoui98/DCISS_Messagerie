@@ -22,7 +22,7 @@ import fr.uga.miashs.dciss.chatservice.common.Packet;
 import java.util.*;
 
 public class ServerMsg {
-	
+
 	private final static Logger LOG = Logger.getLogger(ServerMsg.class.getName());
 	public final static int SERVER_CLIENTID = 0;
 
@@ -30,13 +30,12 @@ public class ServerMsg {
 	private transient boolean started;
 	private transient ExecutorService executor;
 	private transient ServerPacketProcessor sp;
-	
+
 	// maps pour associer les id aux users et groupes
 	private Map<Integer, UserMsg> users;
 	private Map<Integer, GroupMsg> groups;
-	
-	
-	
+	private Map<String, UserMsg> nicknames = new ConcurrentHashMap<>();
+
 	// séquences pour générer les identifiant d'utilisateurs et de groupe
 	private AtomicInteger nextUserId;
 	private AtomicInteger nextGroupId;
@@ -45,48 +44,49 @@ public class ServerMsg {
 		serverSock = new ServerSocket(port);
 		started = false;
 		users = new ConcurrentHashMap<>();
-		groups = new ConcurrentHashMap<>(); 
+		groups = new ConcurrentHashMap<>();
 		nextUserId = new AtomicInteger(1);
 		nextGroupId = new AtomicInteger(-1);
 		sp = new ServerPacketProcessor(this);
 		executor = Executors.newWorkStealingPool();
 	}
 
-	  // Constantes pour les types de messages
-	  public static final byte CREATE_GROUP = 1;
-	  public static final byte ADD_MEMBER = 2;
-	  public static final byte REMOVE_MEMBER = 3;
-	  public static final byte DELETE_GROUP = 4;
-	  public static final byte FILE_TRANSFER = 5; 
-	  public static final byte IMAGE_MESSAGE = 6;
-	  
-	  // Générateur d'ID
-	  private static final AtomicInteger groupIdCounter = new AtomicInteger(-1);
-  
-	  // Méthodes utilitaires
-	  public static int generateGroupId() {
-		  return groupIdCounter.decrementAndGet();
-	  }
-  
-	  public static boolean isGroupId(int id) {
-		  return id < 0;
-	  }
-  
-	  public static boolean isUserId(int id) {
-		  return id > 0;
-	  }
-	
+	// Constantes pour les types de messages
+	public static final byte CREATE_GROUP = 1;
+	public static final byte ADD_MEMBER = 2;
+	public static final byte REMOVE_MEMBER = 3;
+	public static final byte DELETE_GROUP = 4;
+	public static final byte FILE_TRANSFER = 5;
+	public static final byte IMAGE_MESSAGE = 6;
+	public static final byte NICKNAME = 7;
+
+	// Générateur d'ID
+	private static final AtomicInteger groupIdCounter = new AtomicInteger(-1);
+
+	// Méthodes utilitaires
+	public static int generateGroupId() {
+		return groupIdCounter.decrementAndGet();
+	}
+
+	public static boolean isGroupId(int id) {
+		return id < 0;
+	}
+
+	public static boolean isUserId(int id) {
+		return id > 0;
+	}
+
 	public GroupMsg createGroup(int ownerId) {
 		UserMsg owner = users.get(ownerId);
-		if (owner==null) 
-			throw new ServerException("User with id="+ownerId+" unknown. Group creation failed.");
+		if (owner == null)
+			throw new ServerException("User with id=" + ownerId + " unknown. Group creation failed.");
 		int id = nextGroupId.getAndDecrement();
-		GroupMsg res = new GroupMsg(id,owner);
+		GroupMsg res = new GroupMsg(id, owner);
 		groups.put(id, res);
-		LOG.info("Group "+res.getId()+" created");
+		LOG.info("Group " + res.getId() + " created");
 		return res;
 	}
-	
+
 	public boolean removeGroup(int groupId) {
 		GroupMsg g = groups.remove(groupId);
 		if (g != null) {
@@ -95,35 +95,35 @@ public class ServerMsg {
 		}
 		return false;
 	}
-	
+
 	public boolean removeUser(int userId) {
-		UserMsg u =users.remove(userId);
-		if (u==null) return false;
+		UserMsg u = users.remove(userId);
+		if (u == null)
+			return false;
 		u.beforeDelete();
 		return true;
 	}
-	
+
 	public UserMsg getUser(int userId) {
 		return users.get(userId);
 	}
-	
+
 	// Methode utilisée pour savoir quoi faire d'un paquet
 	// reçu par le serveur
 	public void processPacket(Packet p) {
 		PacketProcessor pp = null;
-		if (p.destId < 0) { //message de groupe
+		if (p.destId < 0) { // message de groupe
 			// can be send only if sender is member
 			UserMsg sender = users.get(p.srcId);
 			GroupMsg g = groups.get(p.destId);
-			if (g.getMembers().contains(sender)) pp=g;
+			if (g.getMembers().contains(sender))
+				pp = g;
+		} else if (p.destId > 0) { // message entre utilisateurs
+			pp = users.get(p.destId);
+		} else { // message de gestion pour le serveur
+			pp = sp;
 		}
-		else if (p.destId > 0) { // message entre utilisateurs
-			 pp = users.get(p.destId);
-		}
-		else { // message de gestion pour le serveur
-			pp=sp;
-		}
-		
+
 		if (pp != null) {
 			pp.process(p);
 		}
@@ -141,7 +141,7 @@ public class ServerMsg {
 
 				// lit l'identifiant du client
 				int userId = dis.readInt();
-				//si 0 alors il faut créer un nouvel utilisateur et
+				// si 0 alors il faut créer un nouvel utilisateur et
 				// envoyer l'identifiant au client
 				if (userId == 0) {
 					userId = nextUserId.getAndIncrement();
@@ -149,9 +149,9 @@ public class ServerMsg {
 					dos.flush();
 					users.put(userId, new UserMsg(userId, this));
 				}
-				// si l'identifiant existe ou est nouveau alors 
-				// deux "taches"/boucles  sont lancées en parralèle
-				// une pour recevoir les messages du client, 
+				// si l'identifiant existe ou est nouveau alors
+				// deux "taches"/boucles sont lancées en parralèle
+				// une pour recevoir les messages du client,
 				// une pour envoyer des messages au client
 				// les deux boucles sont gérées au niveau de la classe UserMsg
 				UserMsg x = users.get(userId);
@@ -187,14 +187,46 @@ public class ServerMsg {
 		ServerMsg s = new ServerMsg(1666);
 		s.start();
 	}
+
 	public GroupMsg getGroup(int groupId) {
 		return groups.get(groupId);
 	}
-	
+
 	// pour les tests unitaires
 	public void addUser(UserMsg user) {
 		if (user != null) {
 			users.put(user.getId(), user);
 		}
 	}
+
+	public void registerNickname(String nickname, UserMsg user) {
+		if (nickname != null && user != null) {
+			nicknames.put(nickname.toLowerCase(), user);
+		}
+	}
+
+	public UserMsg getUserByNickname(String nickname) {
+		return nicknames.get(nickname.toLowerCase());
+	}
+
+	public void broadcastToAllExcept(int excludedUserId, byte[] data) {
+		for (UserMsg user : users.values()) {
+			if (user.getId() != excludedUserId && user.isConnected()) {
+				user.process(new Packet(0, user.getId(), data));
+			}
+		}
+	}
+	// Envoi de la liste complète des pseudos connectés à un utilisateur
+	public void sendAllNicknamesTo(UserMsg user) {
+		for (Map.Entry<String, UserMsg> entry : nicknames.entrySet()) {
+			String nickname = entry.getKey();
+			UserMsg u = entry.getValue();
+			if (u != null && u.getId() != user.getId()) {
+				String msg = "NOUVEAU_PSEUDO:" + u.getId() + ":" + nickname;
+				user.process(new Packet(0, user.getId(), msg.getBytes()));
+			}
+		}
+	}
+	
+
 }
