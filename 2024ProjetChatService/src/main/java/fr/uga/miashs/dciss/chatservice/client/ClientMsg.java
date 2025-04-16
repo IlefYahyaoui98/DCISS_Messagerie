@@ -262,6 +262,7 @@ public class ClientMsg {
 		ClientMsg c = new ClientMsg("localhost", 1666);
 		Map<String, Integer> pseudoToId = new HashMap<>();
 		Map<Integer, String> idToPseudo = new HashMap<>();
+		Map<Integer, String> groupIdToName = new HashMap<>();
 
 		// Listener principal de messages texte
 		c.addMessageListener(p -> {
@@ -307,10 +308,21 @@ public class ClientMsg {
 				System.out.println(msg);
 				return;
 			}
+			// Si message Groupe
+			if (msg.startsWith("GROUPE:")) {
+				String[] parts = msg.split(":", 3);
+				if (parts.length == 3) {
+					int groupId = Integer.parseInt(parts[1]);
+					String groupName = parts[2];
+					groupIdToName.put(groupId, groupName);
+				}
+				return;
+			}
 
 			// Affichage Message classique
 			String from = idToPseudo.getOrDefault(p.srcId, "Utilisateur #" + p.srcId);
-			String to = idToPseudo.getOrDefault(p.destId, "Utilisateur #" + p.destId);
+			String to = idToPseudo.containsKey(p.destId) ? idToPseudo.get(p.destId)
+					: groupIdToName.getOrDefault(p.destId, "ID inconnu #" + p.destId);
 			System.out.println(from + " says to " + to + " : " + msg);
 		});
 
@@ -364,14 +376,20 @@ public class ClientMsg {
 
 				case "\\create":
 					try {
+						System.out.print("Nom du groupe : ");
+						System.out.flush(); // important pour vider le buffer et éviter les mélanges
+						String groupName = sc.nextLine();
+
 						System.out.print("Nombre de membres dans le groupe : ");
 						int nb = Integer.parseInt(sc.nextLine());
 						List<String> pseudos = new ArrayList<>();
 						for (int i = 0; i < nb; i++) {
 							System.out.print("Pseudo du membre " + (i + 1) + " : ");
+							System.out.flush();
 							pseudos.add(sc.nextLine());
 						}
-						ControleChat.CreateGroup(c, pseudos, pseudoToId);
+						ControleChat.CreateGroup(c, pseudos, pseudoToId, groupName);
+						ControleChat.CreateGroup(c, pseudos, pseudoToId, "Groupe de " + nb + " membres");
 					} catch (Exception e) {
 						System.out.println("Erreur lors de la création du groupe.");
 					}
