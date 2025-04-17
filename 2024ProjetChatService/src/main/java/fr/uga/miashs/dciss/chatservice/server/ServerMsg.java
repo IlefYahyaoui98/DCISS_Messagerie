@@ -34,6 +34,7 @@ public class ServerMsg {
 	// maps pour associer les id aux users et groupes
 	private Map<Integer, UserMsg> users;
 	private Map<Integer, GroupMsg> groups;
+	private Map<String, Integer> groupNames = new ConcurrentHashMap<>();
 	private Map<String, UserMsg> nicknames = new ConcurrentHashMap<>();
 
 	// séquences pour générer les identifiant d'utilisateurs et de groupe
@@ -227,6 +228,12 @@ public class ServerMsg {
 			}
 		}
 	}
+	public void registerGroupName(String name, int groupId) {
+		groupNames.put(name.toLowerCase(), groupId);
+	}
 	
+	public Integer getGroupIdByName(String name) {
+		return groupNames.get(name.toLowerCase());
+	}
 
 }

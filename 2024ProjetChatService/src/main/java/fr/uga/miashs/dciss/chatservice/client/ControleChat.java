@@ -20,7 +20,7 @@ public class ControleChat {
         client.sendPacket(destId, message.getBytes());
     }
 
-    public static void CreateGroup(ClientMsg client, List<String> pseudos, Map<String, Integer> pseudoToId, String groupName) {
+    public static void CreateGroup(ClientMsg client, List<String> pseudos, Map<String, Integer> pseudoToId,String groupName) {
         try {
             List<Integer> membres = new ArrayList<>();
             for (String pseudo : pseudos) {
@@ -34,14 +34,16 @@ public class ControleChat {
 
             ByteArrayOutputStream bos = new ByteArrayOutputStream();
             DataOutputStream dos = new DataOutputStream(bos);
+            // type 1 = création de groupe
             dos.writeByte(1); // type = 1 : création de groupe
-            dos.writeUTF(groupName); // ⚠️ Ajouter le nom du groupe ici
+            dos.writeUTF(groupName); // nom du groupe
             dos.writeInt(membres.size());
             for (int id : membres)
-                dos.writeInt(id);
+                dos.writeInt(id); 
             dos.flush();
 
             client.sendPacket(0, bos.toByteArray());
+           
 
         } catch (IOException e) {
             System.out.println("Erreur lors de la création du groupe.");

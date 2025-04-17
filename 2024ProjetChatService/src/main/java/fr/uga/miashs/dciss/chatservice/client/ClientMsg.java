@@ -314,7 +314,22 @@ public class ClientMsg {
 				if (parts.length == 3) {
 					int groupId = Integer.parseInt(parts[1]);
 					String groupName = parts[2];
-					groupIdToName.put(groupId, groupName);
+					pseudoToId.put(groupName.toLowerCase(), groupId);
+					idToPseudo.put(groupId, groupName);
+					System.out
+							.println("Vous avez été ajouté au groupe " + groupName + " (id = " + groupId + ")");
+				}
+				return;
+			}
+
+			if (msg.startsWith("GROUPE_CREE:")) {
+				String[] parts = msg.split(":", 3);
+				if (parts.length == 3) {
+					int groupId = Integer.parseInt(parts[1]);
+					String groupName = parts[2];
+					pseudoToId.put(groupName.toLowerCase(), groupId);
+					idToPseudo.put(groupId, groupName);
+					System.out.println("[INFO] Groupe \"" + groupName + "\" créé (id = " + groupId + ")");
 				}
 				return;
 			}
@@ -331,7 +346,9 @@ public class ClientMsg {
 		c.addMessageListener(new ImageMessageListener("images"));
 
 		// Listener de déconnexion
-		c.addConnectionListener(active -> {
+		c.addConnectionListener(active ->
+
+		{
 			if (!active)
 				System.exit(0);
 		});
@@ -377,19 +394,19 @@ public class ClientMsg {
 				case "\\create":
 					try {
 						System.out.print("Nom du groupe : ");
-						System.out.flush(); // important pour vider le buffer et éviter les mélanges
 						String groupName = sc.nextLine();
 
 						System.out.print("Nombre de membres dans le groupe : ");
 						int nb = Integer.parseInt(sc.nextLine());
+
 						List<String> pseudos = new ArrayList<>();
 						for (int i = 0; i < nb; i++) {
 							System.out.print("Pseudo du membre " + (i + 1) + " : ");
-							System.out.flush();
 							pseudos.add(sc.nextLine());
 						}
+
 						ControleChat.CreateGroup(c, pseudos, pseudoToId, groupName);
-						ControleChat.CreateGroup(c, pseudos, pseudoToId, "Groupe de " + nb + " membres");
+
 					} catch (Exception e) {
 						System.out.println("Erreur lors de la création du groupe.");
 					}

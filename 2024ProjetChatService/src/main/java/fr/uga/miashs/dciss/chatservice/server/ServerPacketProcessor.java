@@ -11,6 +11,8 @@
 
 package fr.uga.miashs.dciss.chatservice.server;
 
+import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.logging.Logger;
@@ -54,26 +56,36 @@ public class ServerPacketProcessor implements PacketProcessor {
 	}
 
 	public void createGroup(int ownerId, ByteBuffer data) {
-		int nb = data.getInt();
-		GroupMsg g = server.createGroup(ownerId);
+		try {
+			DataInputStream dis = new DataInputStream(new ByteArrayInputStream(data.array(), 1, data.remaining() - 1));
+			String groupName = dis.readUTF();
+			int nb = dis.readInt();
 
-		for (int i = 0; i < nb; i++) {
-			int memberId = data.getInt();
-			UserMsg member = server.getUser(memberId);
-			g.addMember(member);
+			UserMsg owner = server.getUser(ownerId);
+			String ownerPseudo = (owner != null && owner.getNickname() != null) ? owner.getNickname() : "Un utilisateur";
 
-			// Envoi d'un message de notification au membre
-			if (member != null) {
-				String notif = "Vous avez été ajouté au groupe " + g.getId();
-				member.process(new Packet(0, memberId, notif.getBytes()));
+			GroupMsg g = server.createGroup(ownerId);
+			//UserMsg owner = server.getUser(ownerId);
+
+			for (int i = 0; i < nb; i++) {
+				int memberId = dis.readInt(); // ← utilise dis ici, pas data.getInt() !
+				UserMsg member = server.getUser(memberId);
+				g.addMember(member);
+
+				// Notifier le membre ajouté
+				if (member != null) {
+					String notif = ownerPseudo + " vous a ajouté au groupe " + groupName;
+					member.process(new Packet(0, memberId, notif.getBytes()));
+				}
 			}
-		}
 
-		// Envoi d'une confirmation au créateur du groupe
-		UserMsg owner = server.getUser(ownerId);
-		if (owner != null) {
-			String confirm = "Vous avez créé le groupe " + g.getId();
-			owner.process(new Packet(0, ownerId, confirm.getBytes()));
+			// Notifier le créateur du groupe
+			if (owner != null) {
+				String confirm = "Vous avez créé le groupe [" + groupName + "] (id = " + g.getId() + ")";
+				owner.process(new Packet(0, ownerId, confirm.getBytes()));
+			}
+		} catch (IOException e) {
+			LOG.warning("Erreur lors de la lecture des données pour la création de groupe : " + e.getMessage());
 		}
 	}
 
@@ -230,4 +242,10 @@ public class ServerPacketProcessor implements PacketProcessor {
 
 	}
 
+	private String readString(ByteBuffer buf) {
+		int length = buf.get(); // ou buf.getInt(), selon ton writeUTF
+		byte[] bytes = new byte[length];
+		buf.get(bytes);
+		return new String(bytes);
+	}
 }
